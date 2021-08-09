@@ -1,8 +1,7 @@
 #include "opencv2/opencv.hpp"
-#include "opencv2/mcc.hpp"
+#include "checkr24.hpp"
 #include <iostream>
 #include <string>
-#include "checkr24.hpp"
 
 using namespace std;
 using namespace cv;
@@ -88,7 +87,7 @@ int main()
 		1693,1692
 	};
 
-	// 从图像中读取颜色
+	// 麓脫脥录脧帽脰脨露脕脠隆脩脮脡芦
 	std::vector<int> rgb_list;
 	read_rgb_from_images(img, rgb_list, corner_pos);
 	
