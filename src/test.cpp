@@ -1,52 +1,12 @@
 #include "opencv2/opencv.hpp"
-#include "checkr24.hpp"
+#include "opencv2/mcc.hpp"
 #include <iostream>
 #include <string>
+#include "checkr24.hpp"
+#include "ccmlut.hpp"
 
 using namespace std;
 using namespace cv;
-
-
-// gamma transform
-void GammaTransform(const Mat& srcImage, Mat& dstImage, double gamma)
-{
-	unsigned char lut[256];
-	for (int i = 0; i < 256; i++)
-	{
-		lut[i] = saturate_cast<uchar>(pow((float)i / 255.0, gamma) * 255.0f);
-	}
-	dstImage = srcImage.clone();
-	int channels = srcImage.channels();
-	switch (channels)
-	{
-	case 1:
-	{
-		MatIterator_<uchar> it = dstImage.begin<uchar>();
-		MatIterator_<uchar> end = dstImage.end<uchar>();
-		while (it != end)
-		{
-			*it = lut[(*it)];
-			it++;
-		}
-		break;
-	}
-	case 3:
-	{
-		MatIterator_<Vec3b> it = dstImage.begin<Vec3b>();
-		MatIterator_<Vec3b> end = dstImage.end<Vec3b>();
-		while (it != end)
-		{
-			(*it)[0] = lut[(*it)[0]];
-			(*it)[1] = lut[(*it)[1]];
-			(*it)[2] = lut[(*it)[2]];
-			it++;
-		}
-		break;
-	}
-	default:
-		break;
-	}
-}
 
 
 // read color from iamge
@@ -77,7 +37,6 @@ void read_rgb_from_images(const Mat img, std::vector<int> &rgb_list, const std::
 
 int main()
 {
-	// read img
 	auto img = imread("../img/test.jpg", 1);
 
 	std::vector<int> corner_pos{
@@ -87,42 +46,31 @@ int main()
 		1693,1692
 	};
 
-	// ´ÓÍ¼ÏñÖÐ¶ÁÈ¡ÑÕÉ«
+	// read color from image
 	std::vector<int> rgb_list;
 	read_rgb_from_images(img, rgb_list, corner_pos);
 	
 	double ccm[12];
 	CCMSolve(rgb_list, ccm, 2);
 
-	// use ccm to do correction
-	// de gamma
-	GammaTransform(img, img, 2);
-
-	// bgr -> xyz
-	cv::cvtColor(img, img, COLOR_BGR2XYZ);
-
-	// use ccm
-	for (int y = 0; y < img.rows; y++) 
+	CCMLUT clut;
+	clut_create(ccm, 0.45, clut);
+	
+	for (int y = 0; y < img.rows; y++)
 	{
 		for (int x = 0; x < img.cols; x++)
 		{
-			auto &v = img.at<Vec3b>(y, x);
-			double v_x = v[0] * ccm[0] + v[1] * ccm[1 * 3 + 0] + v[2] * ccm[2 * 3 + 0] + ccm[3 * 3 + 0] * 255;
-			double v_y = v[0] * ccm[1] + v[1] * ccm[1 * 3 + 1] + v[2] * ccm[2 * 3 + 1] + ccm[3 * 3 + 1] * 255;
-			double v_z = v[0] * ccm[2] + v[1] * ccm[1 * 3 + 2] + v[2] * ccm[2 * 3 + 2] + ccm[3 * 3 + 2] * 255;
-			
-			v = Vec3b(MAX(MIN(v_x, 255), 0), MAX(MIN(v_y, 255), 0), MAX(MIN(v_z, 255), 0));
+			int r, g, b;
+			auto &vs = img.at<Vec3b>(y, x);
+			clut_lookup(clut, vs[2], vs[1], vs[0], r, g, b);
+			vs[0] = b;
+			vs[1] = g;
+			vs[2] = r;
 		}
 	}
 
-	// xyz -> bgr
-	cv::cvtColor(img, img, COLOR_XYZ2BGR);
-
-	// re gamma
-	GammaTransform(img, img, 0.5);
-
 	// save 
-	cv::imwrite("3.jpg", img);   
+	cv::imwrite("5.jpg", img);
 	
 
 	return 0;  
